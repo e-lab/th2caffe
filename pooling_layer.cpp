@@ -1,3 +1,7 @@
+// Modified version of pooling_layer.cpp
+// Line 93, line 94 in original source code modified, see comments for details
+// Jarvis Du
+// Aug 21, 2015
 #include <algorithm>
 #include <cfloat>
 #include <vector>
@@ -90,8 +94,11 @@ void PoolingLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
     kernel_h_ = bottom[0]->height();
     kernel_w_ = bottom[0]->width();
   }
+// Where is modified here (two lines):
+  // pooled_height_ = static_cast<int>(ceil(static_cast<float>(
   pooled_height_ = static_cast<int>(floor(static_cast<float>(
       height_ + 2 * pad_h_ - kernel_h_) / stride_h_)) + 1;
+  // pooled_width_ = static_cast<int>(ceil(static_cast<float>(
   pooled_width_ = static_cast<int>(floor(static_cast<float>(
       width_ + 2 * pad_w_ - kernel_w_) / stride_w_)) + 1;
   if (pad_h_ || pad_w_) {

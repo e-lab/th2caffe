@@ -19,17 +19,14 @@ Please note:
 sudo ln -s /path/to/caffe /opt/caffe
 ```
 
-- Override `pooling_layer.cpp` in `caffe/src/caffe/layers` with the file given and recompile caffe.
+- Overwrite `pooling_layer.cpp` in `caffe/src/caffe/layers` with the file given and recompile caffe.
 ```bash
 cd /opt/caffe
-
 make clean
-
 make all
-
 make test
-
 make runtest
+make pycaffe
 ```
 
 The reason to recompile caffe is that caffe takes `ceil` during calculation of `MaxPooling` size, which leads to discrepancy with torch. Recompilation of caffe can lead to failure in several runtests, but from what is tested, there is no function affected.
