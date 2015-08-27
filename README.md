@@ -36,7 +36,12 @@ nn.SoftMax                         (caffe: Softmax)
 ## How to run
 ```bash
 cd th2caffe
-th th2caffe.lua --nf netFile --name nnName --c numChannels --w width, --h height, --loc location)
+th th2caffe.lua --nf netFile \
+                --name nnName \
+                --c numChannels \
+                --w width \
+                --h height \
+                --loc location
 ```
 
 with arguments:
