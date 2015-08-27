@@ -14,22 +14,8 @@ A torch-nn to caffe converter for specific layers.
 `caffe`: See their [GitHub](https://github.com/BVLC/caffe) for installation, install `pycaffe` also to run python scripts
 
 Please note:
-- Specify the installing location to `/opt/caffe`, or change to the corresponding folder in th2caffe.py (see comments). Or create link in `/opt` as
-```bash
-sudo ln -s /path/to/caffe /opt/caffe
-```
 
-- Overwrite `pooling_layer.cpp` in `caffe/src/caffe/layers` with the file given and recompile caffe.
-```bash
-cd /opt/caffe
-make clean
-make all
-make test
-make runtest
-make pycaffe
-```
-
-The reason to recompile caffe is that caffe takes `ceil` during calculation of `MaxPooling` size, which leads to discrepancy with torch. Recompilation of caffe can lead to failure in several runtests, but from what is tested, there is no function affected.
+For now `th2caffe` doesn't work with `nn.SpatialMaxPooling:floor()`, but it will soon be available.
 
 `hdf5`: Install both versions of python and torch.
 for python, run
