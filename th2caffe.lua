@@ -125,6 +125,8 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
    end
    -- Process every layer
    print('--- Now processing layers')
+   -- Current input size
+   curInput = inputDim
    for i = 1, #nnSeq do
       nnCur = nnSeq.modules[i]
       -- layer {
@@ -159,13 +161,58 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          -- weights & bias
          paramsFile:write('weights/' .. names[i], nnCur:parameters()[1])
          paramsFile:write('bias/' .. names[i], nnCur:parameters()[2])
+         -- Update output size
+         tempInput = curInput
+         curInput[2] = nnCur.nOutputPlane
+         curInput[3] = torch.floor((tempInput[3] + 2*nnCur.padding - nnCur.kH)/nnCur.dH + 1) -- height
+         curInput[4] = torch.floor((tempInput[4] + 2*nnCur.padding - nnCur.kW)/nnCur.dW + 1) -- width
       end
       -- Pooling
       if (torch.type(nnCur) == 'nn.SpatialMaxPooling') then
+         if (not nnCur.ceil_mode) then
+            -- construct conversion convolutional layer
+            convName = names[i] .. '_conv'
+            deployFile:write('  name: "' .. convName .. '"\n')
+            deployFile:write('  type: "Convolution"\n')
+            -- TOP/BOTTOM
+            deployFile:write('  bottom: "' .. bottom_names[i] .. '"\n')
+            deployFile:write('  top: "' .. convName .. '"\n')
+            -- convolution_param {
+            deployFile:write('  convolution_param {\n')
+            deployFile:write('    num_output: ' .. tostring(curInput[2]) .. '\n')
+            deployFile:write('    pad: 0\n')
+            kH = math.fmod(curInput[3], nnCur.dH) + 1
+            kW = math.fmod(curInput[4], nnCur.dW) + 1
+            deployFile:write('    kernel_h: ' .. tostring(kH) .. '\n')
+            deployFile:write('    kernel_w: ' .. tostring(kW) .. '\n')
+            deployFile:write('    stride_h: 1\n' )
+            deployFile:write('    stride_w: 1\n')
+            deployFile:write('  }\n')
+            -- convolution_param }
+            deployFile:write('}\n')
+            -- layer }
+            -- weights & bias inside
+            convWeights = torch.DoubleTensor(curInput[2], curInput[2], kH, kW)
+            convBias = torch.DoubleTensor(curInput[2])
+            convWeights:zero()
+            convBias:zero()
+            for iconv = 1, curInput[2] do
+               convWeights[iconv][iconv][1][1] = 1
+            end
+            paramsFile:write('weights/' .. convName, convWeights)
+            paramsFile:write('bias/' .. convName, convBias)
+            -- Update output size
+            tempInput = curInput
+            curInput[3] = tempInput[3] - kH + 1 -- height
+            curInput[4] = tempInput[4] - kW + 1 -- width
+            -- construct MaxPooling layer
+            -- layer {
+            deployFile:write('layer {\n')
+         end
          deployFile:write('  name: "' .. names[i] .. '"\n')
          deployFile:write('  type: "Pooling"\n')
          -- TOP/BOTTOM
-         deployFile:write('  bottom: "' .. bottom_names[i] .. '"\n')
+         deployFile:write('  bottom: "' .. convName .. '"\n')
          deployFile:write('  top: "' .. top_names[i] .. '"\n')
          -- pooling_param {
          deployFile:write('  pooling_param {\n')
@@ -178,6 +225,11 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          deployFile:write('    stride_w: ' .. tostring(nnCur.dW) .. '\n')
          deployFile:write('  }\n')
          -- pooling_param }
+         -- Update output size
+         tempInput = curInput
+         curInput[2] = nnCur.nOutputPlane
+         curInput[3] = torch.ceil((tempInput[3] - nnCur.kH)/nnCur.dH + 1) -- height
+         curInput[4] = torch.ceil((tempInput[4] - nnCur.kW)/nnCur.dW + 1) -- width
       end
       -- Relu
       if (torch.type(nnCur) == 'nn.ReLU') then
@@ -198,8 +250,10 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          deployFile:write('  reshape_param {\n')
          -- shape {
          deployFile:write('    shape {\n')
+         curInput = {1, 1, 1, 1}
          for isize = 1, #nnCur.size do
             deployFile:write('      dim: ' .. tostring(nnCur.size[isize]) .. '\n')
+            curInput[4-#nnCur.size+isize] = nnCur.size[isize]
          end
          deployFile:write('    }\n')
          -- shape }
@@ -256,6 +310,8 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          -- weights & bias
          paramsFile:write('weights/' .. names[i], nnCur:parameters()[1])
          paramsFile:write('bias/' .. names[i], nnCur:parameters()[2])
+         -- update output size
+         curInput = {1, 1, 1, innerproductSize[1]}
       end
       -- Dropout
       if (torch.type(nnCur) == 'nn.Dropout') then
@@ -299,7 +355,6 @@ caffeInPy = function(loc)
    output_name = loc .. '/params/params.caffemodel'
    print('-- Load in python and execute ...')
    os.execute('python th2caffe.py "' .. prototxt_name .. '" "test" "' .. params_name .. '" "' .. output_name .. '"')
-   print('--- Loading in python succeeded, .caffemodel file saved.')
 end
 
 -- Main program

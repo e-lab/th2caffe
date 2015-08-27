@@ -23,16 +23,17 @@ def buildModel(prototxt_name, model_type, params_name, output_loc):
     # plug in parameters
     for key in net.params.keys():
         try:
+            print('[Layer parameters] Now processing: layer '+ key)
             curWeights = params['weights/' + key].value
             curBias = params['bias/' + key].value
             net.params[key][0].data[:] = curWeights.reshape(net.params[key][0].data.shape)
             net.params[key][1].data[:] = curBias.reshape(net.params[key][1].data.shape)
         except KeyError:
             print('Layer "' + key + '": ' + 'No parameters needed.\n')
-            pass
+            sys.exit(0)
     # save caffemodel
     net.save(output_loc)
-    
+    print('--- Loading in python succeeded. .caffemodel file saved.')
 
 import sys
 buildModel(*sys.argv[1:])        
