@@ -127,6 +127,7 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
    print('--- Now processing layers')
    -- Current input size
    curInput = inputDim
+   ceilMode = 0
    for i = 1, #nnSeq do
       nnCur = nnSeq.modules[i]
       -- layer {
@@ -169,7 +170,8 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
       end
       -- Pooling
       if (torch.type(nnCur) == 'nn.SpatialMaxPooling') then
-         if (not nnCur.ceil_mode) then
+         if ((not nnCur.ceil_mode) and (math.fmod(curInput[3] + 2*nnCur.kH, dH) or math.fmod(curInput[4] + 2*nnCur.kW, dW))) then
+            ceilMode = 1
             -- construct conversion convolutional layer
             convName = names[i] .. '_conv'
             deployFile:write('  name: "' .. convName .. '"\n')
@@ -346,6 +348,10 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
    deployFile:close()
    paramsFile:close()
    print('--- Prototxt file generated.')
+   if (ceilMode) then
+      -- warning
+      print('Warning: Input size causes extra layers to inefficiency in calculation. Try use "nn.SpatialMaxPooling:ceil()" or resize the input.')
+   end
 end
 
 -- Build Caffe model in Python and output binary weight file
