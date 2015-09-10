@@ -1,17 +1,21 @@
 #########################
 ## th2caffe #############
 ## Jarvis Du ############
-#########################
+###############################################
 ## caffe loader from prototxt file ############
 ## layer pararmeters saver ####################
 ###############################################
 
 
-def buildModel(prototxt_name, model_type, params_name, output_loc):
+def buildModel(prototxt_name, model_type, params_name, output_loc, caffe_loc):
     # necessary imports for caffe
     import sys
-    sys.path.append('/opt/caffe/python')
-    import caffe
+    sys.path.append(caffe_loc+'/python')
+    try: 
+        import caffe
+    except ImportError:
+        print('pyCAFFE: Not found!') 
+        sys.exit(0)
     import h5py
     # build model in caffe
     if model_type == 'test':

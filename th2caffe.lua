@@ -7,10 +7,10 @@
 -- Loadcaffe helps a lot with the codes ---------
 -------------------------------------------------
 
-Convert = function(netFile, nnName, inC, inW, inH, loc)
+Convert = function(netFile, nnName, inC, inW, inH, loc, caffeLoc)
    inputDim = {1, inC, inH, inW}
    nnToFile(netFile, nnName, inputDim, 'data', loc)
-   caffeInPy(loc)
+   caffeInPy(loc, caffeLoc)
 end
 
 -- Convert from nn to prototxt
@@ -62,6 +62,17 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          end
          top_names[i] = names[i]
          lastLayer = names[i]
+         -- update correctDims
+         if (not (nnCur.padding == nil)) then
+            padH = nnCur.padding
+            padW = nnCur.padding
+         elseif (not (nnCur.padH == nil)) then
+            padH = nnCur.padH
+            padW = nnCur.padW
+         else
+            padH = 0
+            padW = 0
+         end
       end
       if (torch.type(nnCur) == 'nn.SpatialMaxPooling') then
          print('[Layer ' .. tostring(i) .. '] MaxPooling')
@@ -69,6 +80,17 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          bottom_names[i] = lastLayer
          top_names[i] = names[i]
          lastLayer = names[i]
+          -- update correctDims
+         if (not (nnCur.padding == nil)) then
+            padH = nnCur.padding
+            padW = nnCur.padding
+         elseif (not (nnCur.padH == nil)) then
+            padH = nnCur.padH
+            padW = nnCur.padW
+         else
+            padH = 0
+            padW = 0
+         end
       end
       if (torch.type(nnCur) == 'nn.ReLU') then 
          print('[Layer ' .. tostring(i) .. '] ReLU')
@@ -152,7 +174,21 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          -- Omitted?
          deployFile:write('    num_output: ' .. tostring(nnCur.nOutputPlane) .. '\n')
          -- Omitted?
-         deployFile:write('    pad: ' .. tostring(nnCur.padding) .. '\n')
+         ----[[
+         if (not (nnCur.padding == nil)) then
+            padH = nnCur.padding
+            padW = nnCur.padding
+         elseif (not (nnCur.padH == nil)) then
+            padH = nnCur.padH
+            padW = nnCur.padW
+         else
+            padH = 0
+            padW = 0
+         end
+         deployFile:write('    pad_h: ' .. tostring(padH) .. '\n')
+         deployFile:write('    pad_w: ' .. tostring(padW) .. '\n')
+         ----]]
+         --  deployFile:write('    pad: ' .. tostring(nnCur.padding) .. '\n')
          deployFile:write('    kernel_h: ' .. tostring(nnCur.kH) .. '\n')
          deployFile:write('    kernel_w: ' .. tostring(nnCur.kW) .. '\n')
          deployFile:write('    stride_h: ' .. tostring(nnCur.dH) .. '\n')
@@ -170,61 +206,35 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
       end
       -- Pooling
       if (torch.type(nnCur) == 'nn.SpatialMaxPooling') then
-         if ((not nnCur.ceil_mode) and (math.fmod(curInput[3] + 2*nnCur.kH, dH) or math.fmod(curInput[4] + 2*nnCur.kW, dW))) then
-            ceilMode = 1
-            -- construct conversion convolutional layer
-            convName = names[i] .. '_conv'
-            deployFile:write('  name: "' .. convName .. '"\n')
-            deployFile:write('  type: "Convolution"\n')
-            -- TOP/BOTTOM
-            deployFile:write('  bottom: "' .. bottom_names[i] .. '"\n')
-            deployFile:write('  top: "' .. convName .. '"\n')
-            -- convolution_param {
-            deployFile:write('  convolution_param {\n')
-            deployFile:write('    num_output: ' .. tostring(curInput[2]) .. '\n')
-            deployFile:write('    pad: 0\n')
-            kH = math.fmod(curInput[3], nnCur.dH) + 1
-            kW = math.fmod(curInput[4], nnCur.dW) + 1
-            deployFile:write('    kernel_h: ' .. tostring(kH) .. '\n')
-            deployFile:write('    kernel_w: ' .. tostring(kW) .. '\n')
-            deployFile:write('    stride_h: 1\n' )
-            deployFile:write('    stride_w: 1\n')
-            deployFile:write('  }\n')
-            -- convolution_param }
-            deployFile:write('}\n')
-            -- layer }
-            -- weights & bias inside
-            convWeights = torch.DoubleTensor(curInput[2], curInput[2], kH, kW)
-            convBias = torch.DoubleTensor(curInput[2])
-            convWeights:zero()
-            convBias:zero()
-            for iconv = 1, curInput[2] do
-               convWeights[iconv][iconv][1][1] = 1
-            end
-            paramsFile:write('weights/' .. convName, convWeights)
-            paramsFile:write('bias/' .. convName, convBias)
-            -- Update output size
-            tempInput = curInput
-            curInput[3] = tempInput[3] - kH + 1 -- height
-            curInput[4] = tempInput[4] - kW + 1 -- width
-            -- construct MaxPooling layer
-            -- layer {
-            deployFile:write('layer {\n')
-         end
+         if (not (nnCur.padding == nil)) then
+            padH = nnCur.padding
+            padW = nnCur.padding
+         elseif (not (nnCur.padH == nil)) then
+            padH = nnCur.padH
+            padW = nnCur.padW
+         else
+            padH = 0
+            padW = 0
+         end 
          deployFile:write('  name: "' .. names[i] .. '"\n')
          deployFile:write('  type: "Pooling"\n')
          -- TOP/BOTTOM
-         deployFile:write('  bottom: "' .. convName .. '"\n')
+         deployFile:write('  bottom: "' .. (bottom_names[i]) .. '"\n')
          deployFile:write('  top: "' .. top_names[i] .. '"\n')
          -- pooling_param {
          deployFile:write('  pooling_param {\n')
          deployFile:write('    pool: MAX\n')
          -- %%% Pad
-         deployFile:write('    pad: 0\n')
+         deployFile:write('    pad_h: ' .. tostring(padH) .. '\n')
+         deployFile:write('    pad_w: ' .. tostring(padW) .. '\n')
          deployFile:write('    kernel_h: ' .. tostring(nnCur.kH) .. '\n')
          deployFile:write('    kernel_w: ' .. tostring(nnCur.kW) .. '\n')
          deployFile:write('    stride_h: ' .. tostring(nnCur.dH) .. '\n')
          deployFile:write('    stride_w: ' .. tostring(nnCur.dW) .. '\n')
+         -- specify ceil_mode
+         if (not (nnCur.ceil_mode == true)) then
+            deployFile:write('  ceil_mode: false\n')
+         end
          deployFile:write('  }\n')
          -- pooling_param }
          -- Update output size
@@ -348,19 +358,15 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
    deployFile:close()
    paramsFile:close()
    print('--- Prototxt file generated.')
-   if (ceilMode) then
-      -- warning
-      print('Warning: Input size causes extra layers to inefficiency in calculation. Try use "nn.SpatialMaxPooling:ceil()" or resize the input.')
-   end
 end
 
 -- Build Caffe model in Python and output binary weight file
-caffeInPy = function(loc)
+caffeInPy = function(loc, caffeLoc)
    prototxt_name = loc .. '/architecture/deploy.prototxt'
    params_name = loc .. '/params/params.h5'
    output_name = loc .. '/params/params.caffemodel'
    print('-- Load in python and execute ...')
-   os.execute('python th2caffe.py "' .. prototxt_name .. '" "test" "' .. params_name .. '" "' .. output_name .. '"')
+   os.execute('python th2caffe.py "' .. prototxt_name .. '" "test" "' .. params_name .. '" "' .. output_name .. '" "' .. caffeLoc .. '"')
 end
 
 -- Main program
@@ -373,6 +379,7 @@ opt = lapp(title .. [[
 --w          (default 231)          Width of input image
 --h          (default 231)          Height of input image
 --loc        (default ./test)       Location to save the outputs
+--caffe      (default /opt/caffe)   Location of caffe source
 ]])
 
-Convert(opt.nf, opt.name, opt.c, opt.w, opt.h, opt.loc)
+Convert(opt.nf, opt.name, opt.c, opt.w, opt.h, opt.loc, opt.caffe)

@@ -11,7 +11,20 @@ A torch-nn to caffe converter for specific layers.
 ## Installation
 `th2caffe` requires the following packages.
 
-`caffe`: See their [GitHub](https://github.com/BVLC/caffe) for installation, install `pycaffe` also to run python scripts
+`caffe`: To solve the discrepancy between the size of `nn.SpatialMaxPooling` and `caffe:Pooling(MAX)`, some `caffe` codes are modified. This special caffe version can be installed either by overwriting some source codes in the original `caffe`, or by installing a [folk version](https://github.com/dujianyi/caffe) of caffe.
+
+For overwriting files, please run
+```bash
+cp caffe/caffe.proto location/to/caffe/src/caffe/proto/caffe.proto
+cp caffe/pooling_layer.cpp location/to/caffe/src/caffe/layers/pooling_layer.cpp
+cp caffe/vision_layers.hpp location/to/caffe/include/caffe/vision_layers.hpp
+make clean
+make all
+make test
+make runtest
+```
+
+See `BVLC/caffe`'s [GitHub](https://github.com/BVLC/caffe) for installation. Install `pycaffe` also to run python scripts.
 
 Please note:
 
@@ -41,7 +54,8 @@ th th2caffe.lua --nf netFile \
                 --c numChannels \
                 --w width \
                 --h height \
-                --loc location
+                --loc location \
+                --caffe caffeloc
 ```
 
 with arguments:
@@ -53,6 +67,7 @@ with arguments:
 --w width          Width of input image
 --h height         Height of input image
 --loc location     Location to save the output files (will be created if it doesn't exist)
+--caffe caffeloc   Location to the caffe source
 ```
 ## Output
 The output files include:
