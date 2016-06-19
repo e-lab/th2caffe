@@ -76,3 +76,7 @@ location/architecture/deploy.prototxt   Prototxt file saving the architecture
 location/params/params.h5               .h5 files saving layer parameters
 location/params/params.caffemodel       .caffemodel file that can be loaded by caffe
 ```
+
+### License
+
+MIT
