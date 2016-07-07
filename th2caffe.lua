@@ -201,8 +201,8 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          -- Update output size
          tempInput = curInput
          curInput[2] = nnCur.nOutputPlane
-         curInput[3] = torch.floor((tempInput[3] + 2*nnCur.padding - nnCur.kH)/nnCur.dH + 1) -- height
-         curInput[4] = torch.floor((tempInput[4] + 2*nnCur.padding - nnCur.kW)/nnCur.dW + 1) -- width
+         curInput[3] = torch.floor((tempInput[3] + 2*padH - nnCur.kH)/nnCur.dH + 1) -- height
+         curInput[4] = torch.floor((tempInput[4] + 2*padW - nnCur.kW)/nnCur.dW + 1) -- width
       end
       -- Pooling
       if (torch.type(nnCur) == 'nn.SpatialMaxPooling') then
@@ -233,15 +233,20 @@ nnToFile = function(netFile, nnName, inputDim, nnInput, loc)
          deployFile:write('    stride_w: ' .. tostring(nnCur.dW) .. '\n')
          -- specify ceil_mode
          if (not (nnCur.ceil_mode == true)) then
-            deployFile:write('  ceil_mode: false\n')
+            --deployFile:write('  ceil_mode: false\n')
          end
          deployFile:write('  }\n')
          -- pooling_param }
          -- Update output size
          tempInput = curInput
          curInput[2] = nnCur.nOutputPlane
-         curInput[3] = torch.ceil((tempInput[3] - nnCur.kH)/nnCur.dH + 1) -- height
-         curInput[4] = torch.ceil((tempInput[4] - nnCur.kW)/nnCur.dW + 1) -- width
+         if nnCur.ceil_mode then
+            curInput[3] = torch.ceil((tempInput[3] + 2*padW - nnCur.kH)/nnCur.dH + 1) -- height
+            curInput[4] = torch.ceil((tempInput[4] + 2*padW - nnCur.kW)/nnCur.dW + 1) -- width
+         else
+            curInput[3] = torch.floor((tempInput[3] + 2*padW - nnCur.kH)/nnCur.dH + 1) -- height
+            curInput[4] = torch.floor((tempInput[4] + 2*padW - nnCur.kW)/nnCur.dW + 1) -- width
+         end
       end
       -- Relu
       if (torch.type(nnCur) == 'nn.ReLU') then
