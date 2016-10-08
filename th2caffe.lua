@@ -231,7 +231,14 @@ end
 function exportmodule(m, depends, shape)
   
    local mtype = torch.type(m):sub(4)
-   if mtype == 'ConcatTable' then      
+   if mtype == 'Concat' then
+      local out = {}
+      local newshape = {}
+      for i=1,#m.modules do
+         out[i], newshape[i] = exportmodule(m.modules[i], depends, shape)
+      end
+      return exportmodule(nn.JoinTable(2), out, newshape)
+   elseif mtype == 'ConcatTable' then
       local out = {}
       local newshape = {}
       for i=1,#m.modules do
@@ -344,7 +351,7 @@ function caffeInPy(loc, caffeLoc)
    params_name = loc .. '/params/params.h5'
    output_name = loc .. '/params/params.caffemodel'
    print('-- Load in python and execute ...')
-   os.execute('python th2caffe.py "' .. prototxt_name .. '" "test" "' .. params_name .. '" "' .. output_name .. '" "' .. caffeLoc .. '"')
+   os.execute('python3 th2caffe.py "' .. prototxt_name .. '" "test" "' .. params_name .. '" "' .. output_name .. '" "' .. caffeLoc .. '"')
 
 end
 
